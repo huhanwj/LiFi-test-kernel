@@ -1064,7 +1064,21 @@ back_from_confirm:
 		if (!IS_ERR_OR_NULL(skb))
 		//HAN: the kernel sends out the packet
 			printk("udp_sendmsg: the kernel sends out the packet by udp_send_skb()\n");
+		//HAN: I would like to test whether I can send the copied skb
+			struct sk_buff *skb_copied = NULL;
+			skb_copied=skb_copy(skb,GFP_KERNEL);
 			err = udp_send_skb(skb, fl4);
+			if (skb_copied!=NULL){
+				printk("udp_sendmsg: the kernel attempts to transmit the copied packet\n");
+			}
+			int err2;
+			err2=udp_send_skb(skb_copied,fl4);
+			if (err2){
+				printk("udp_sendmsg: the copied skb transmission fails\n");
+			}
+			else{
+				printk("udp_sendmsg: the copied skb has been transmitted successfully\n");
+			}
 		goto out;
 	}
 
