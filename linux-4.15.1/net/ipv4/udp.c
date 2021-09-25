@@ -921,7 +921,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	/*
 	 *	Get and verify the address.
 	 */
-	if (msg->msg_name) {
+	if (msg->msg_name) {//HAN: msg_name: optional address
 		DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
 		if (msg->msg_namelen < sizeof(*usin))
 			return -EINVAL;
@@ -1000,8 +1000,12 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	} else if (!ipc.oif)
 		ipc.oif = inet->uc_index;
 
-	if (connected)
+	if (connected){
+		//HAN: msg_name in struct msghdr represents the destination socket address. The msg_name opaque pointer to 
+		//struct sockaddr_in pointer. If msg_name is NULL, then the program will jump here to get the rt directly
 		rt = (struct rtable *)sk_dst_check(sk, 0);
+		printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel gets the rt directly from sock\n");
+	}
 
 	if (!rt) {
 		struct net *net = sock_net(sk);
@@ -1016,6 +1020,11 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 				   sk->sk_uid);
 
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
+		//HAN: In most UDP transmissions, the sockaddr_in pointer should not be empty, so I think most of the packets
+		//should arrive here instead of calling sk_dst_check()
+
+		printk("udp_sendmsg: msg->msg_name is not null, the kernel checks the routing information as expected\n");
+
 		rt = ip_route_output_flow(net, fl4, sk);
 		if (IS_ERR(rt)) {
 			err = PTR_ERR(rt);
@@ -1029,8 +1038,12 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if ((rt->rt_flags & RTCF_BROADCAST) &&
 		    !sock_flag(sk, SOCK_BROADCAST))
 			goto out;
-		if (connected)
+		if (connected){
+		//HAN: If the sockaddr_in pointer is empty, we still need to build the rt for the first incoming packet.
+			//After successfully built, we insert this rt to the sk
+			printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel inserts the generated rt to sk\n");
 			sk_dst_set(sk, dst_clone(&rt->dst));
+		}
 	}
 
 	if (msg->msg_flags&MSG_CONFIRM)
@@ -1043,12 +1056,17 @@ back_from_confirm:
 
 	/* Lockless fast path for the non-corking case. */
 	if (!corkreq) {
+		//HAN: if rt is not null, then it is time to build the skb
+		printk("udp_sendmsg: the kernel generates the skb based on rt\n");
 		skb = ip_make_skb(sk, fl4, getfrag, msg, ulen,
 				  sizeof(struct udphdr), &ipc, &rt,
 				  msg->msg_flags);
 		err = PTR_ERR(skb);
-		if (!IS_ERR_OR_NULL(skb))
+		if (!IS_ERR_OR_NULL(skb)){
+		//HAN: the kernel sends out the packet
+			printk("udp_sendmsg: the kernel sends out the packet by udp_send_skb()\n");
 			err = udp_send_skb(skb, fl4);
+			}
 		goto out;
 	}
 
