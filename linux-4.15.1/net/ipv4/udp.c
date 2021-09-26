@@ -900,7 +900,9 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 
-	fl4 = &inet->cork.fl.u.ip4;
+	fl4 = &inet->cork.fl.u.ip4; //HAN: QUESTION1 Attempts to get the flow information directly from sock?
+								//Should not be a severe problem, apparantly this command is related with
+								//cork. We do not want to use cork related functions.
 	if (up->pending) {
 		/*
 		 * There are pending frames.
@@ -921,6 +923,10 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	/*
 	 *	Get and verify the address.
 	 */
+	// HAN: Here we can see that the udp_sendmsg() tries to get the destination address and port
+	// from the sock or from the userspace information.
+	// We can use the dport as a parameter for us to dertermine our traffic flow.
+
 	if (msg->msg_name) {//HAN: msg_name: optional address
 		DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
 		if (msg->msg_namelen < sizeof(*usin))
@@ -983,6 +989,10 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		faddr = ipc.opt->opt.faddr;
 		connected = 0;
 	}
+
+	// HAN: Here we can see that usd_sendmsg() attempts to get the Type of Service information
+	// Apprantly this is another parameter which be useful for us.
+
 	tos = get_rttos(&ipc, inet);
 	if (sock_flag(sk, SOCK_LOCALROUTE) ||
 	    (msg->msg_flags & MSG_DONTROUTE) ||
@@ -1003,7 +1013,13 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (connected){
 		//HAN: msg_name in struct msghdr represents the destination socket address. The msg_name opaque pointer to 
 		//struct sockaddr_in pointer. If msg_name is NULL, then the program will jump here to get the rt directly
+		//The reason why udp_sendmsg() is capable to do this is that it has already stored necessary information in
+		//sock structure. The prehension is that the userspace should use connect() function in the UDP transmission program
+		
 		rt = (struct rtable *)sk_dst_check(sk, 0);
+		
+		//Since this case is very rare, I do not connect it by setting dport check
+		
 		printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel gets the rt directly from sock\n");
 	}
 
@@ -1013,17 +1029,25 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 		fl4 = &fl4_stack;
 
+		// HAN: From here, we can see udp_sendmsg tries to fulfill the flowi4 struct fl4 by using information including 
+		// tos and dport. So fl4 is the key
+
 		flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
 				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
 				   flow_flags,
 				   faddr, saddr, dport, inet->inet_sport,
 				   sk->sk_uid);
 
-		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
-		//HAN: In most UDP transmissions, the sockaddr_in pointer should not be empty, so I think most of the packets
-		//should arrive here instead of calling sk_dst_check()
+		security_sk_classify_flow(sk, flowi4_to_flowi(fl4)); // HAN: For security checking.
 
-		printk("udp_sendmsg: msg->msg_name is not null, the kernel checks the routing information as expected\n");
+		// HAN: In most UDP transmissions, the sockaddr_in pointer should not be empty, so I think most of the packets
+		// should arrive here instead of calling sk_dst_check()
+		// If the sockaddr_in pointer is empty, we still need to build the rt for the first incoming packet.
+		// The prehension is that the dport of this packet should be our target value.
+
+		if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+			printk("udp_sendmsg: msg->msg_name is not null, the kernel checks the routing information as expected\n");
+		}
 
 		rt = ip_route_output_flow(net, fl4, sk);
 		if (IS_ERR(rt)) {
@@ -1039,9 +1063,14 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		    !sock_flag(sk, SOCK_BROADCAST))
 			goto out;
 		if (connected){
-		//HAN: If the sockaddr_in pointer is empty, we still need to build the rt for the first incoming packet.
-			//After successfully built, we insert this rt to the sk
-			printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel inserts the generated rt to sk\n");
+			
+			//After successfully built, we insert this rt to the sk...if connected. According to my knowledge at
+			//26/Sep, for most udp transmitting programs, they should not be (connected) if they do not use "connect" command
+			
+			if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+				printk("udp_sendmsg: if connected and msg->msg_name is a null pointer, the kernel inserts the generated rt to sk\n");
+			}			
+
 			sk_dst_set(sk, dst_clone(&rt->dst));
 		}
 	}
@@ -1057,14 +1086,20 @@ back_from_confirm:
 	/* Lockless fast path for the non-corking case. */
 	if (!corkreq) {
 		//HAN: if rt is not null, then it is time to build the skb
-		printk("udp_sendmsg: the kernel generates the skb based on rt\n");
+		if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+			printk("udp_sendmsg: the kernel generates the skb based on rt\n");
+		}
+
 		skb = ip_make_skb(sk, fl4, getfrag, msg, ulen,
 				  sizeof(struct udphdr), &ipc, &rt,
 				  msg->msg_flags);
 		err = PTR_ERR(skb);
 		if (!IS_ERR_OR_NULL(skb)){
-		//HAN: the kernel sends out the packet
-			printk("udp_sendmsg: the kernel sends out the packet by udp_send_skb()\n");
+			//HAN: the kernel sends out the packet
+			if (fl4->fl4_dport == OUR_DESTINATION_PORT){			
+				printk("udp_sendmsg: the kernel sends out the packet by udp_send_skb()\n");
+			}	
+
 			err = udp_send_skb(skb, fl4);
 			}
 		goto out;

@@ -1377,7 +1377,7 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	iph = ip_hdr(skb);
 	iph->version = 4;
 	iph->ihl = 5;
-	iph->tos = (cork->tos != -1) ? cork->tos : inet->tos;
+	iph->tos = (cork->tos != -1) ? cork->tos : inet->tos; //HAN: QUESTION2 what is the meaning of this sentence???
 	iph->frag_off = df;
 	iph->ttl = ttl;
 	iph->protocol = sk->sk_protocol;
