@@ -85,6 +85,7 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
+#define OUR_DESTINATION_PORT 8080
 static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 				   enum fib_event_type event_type, u32 dst,
 				   int dst_len, struct fib_alias *fa)
