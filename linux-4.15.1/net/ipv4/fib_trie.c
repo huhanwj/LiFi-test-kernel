@@ -85,7 +85,6 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
-#define OUR_DESTINATION_PORT 8080
 static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 				   enum fib_event_type event_type, u32 dst,
 				   int dst_len, struct fib_alias *fa)
@@ -1424,9 +1423,9 @@ found:
 
 		//HAN: the kernel has found the correct leaf, now it attempts to find the fib_info
 		//Note that in this function the input flowi4 struct is flp
-		if (flp->fl4_dport == OUR_DESTINATION_PORT){
-			printk("fib_table_lookup: Kernel has found the leaf, it starts to determine the fib_info\n");
-		}		
+		//if (flp->fl4_dport == OUR_DESTINATION_PORT){
+		//	printk("fib_table_lookup: Kernel has found the leaf, it starts to determine the fib_info\n");
+		//}		
 
 		struct fib_info *fi = fa->fa_info;
 		int nhsel, err;
@@ -1455,9 +1454,9 @@ found:
 
 			//HAN: the kernel has found a proper fib_info.If multipath is set, the kernel starts to try
 			//all the different paths between the source and destination
-			if (flp->fl4_dport == OUR_DESTINATION_PORT){
-				printk("fib_table_lookup: the kernel checks whether the %d th route is available or not\n",nhsel);
-			}					
+			//if (flp->fl4_dport == OUR_DESTINATION_PORT){
+			//	printk("fib_table_lookup: the kernel checks whether the %d th route is available or not\n",nhsel);
+			//}					
 
 			const struct fib_nh *nh = &fi->fib_nh[nhsel];
 			struct in_device *in_dev = __in_dev_get_rcu(nh->nh_dev);
@@ -1479,9 +1478,9 @@ found:
 				refcount_inc(&fi->fib_clntref);
 
 			//HAN: the kernel has found the correct fib_info, now it is time to build the fib_result struct
-			if (flp->fl4_dport == OUR_DESTINATION_PORT){
-				printk("fib_table_lookup: the kernel has determined that the %d th route is available\n",nhsel);
-			}	
+			//if (flp->fl4_dport == OUR_DESTINATION_PORT){
+			//	printk("fib_table_lookup: the kernel has determined that the %d th route is available\n",nhsel);
+			//}	
 
 			res->prefix = htonl(n->key);
 			res->prefixlen = KEYLENGTH - fa->fa_slen;
