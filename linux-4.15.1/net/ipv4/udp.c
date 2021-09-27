@@ -1021,7 +1021,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		
 		//Since this case is very rare, I do not connect it by setting dport check
 		
-		printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel gets the rt directly from sock\n");
+		//printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel gets the rt directly from sock\n");
 	}
 
 	if (!rt) {
