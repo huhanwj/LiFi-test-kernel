@@ -120,6 +120,7 @@
 	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
 
 #define RT_GC_TIMEOUT (300*HZ)
+#define OUR_DESTINATION_PORT 8080
 
 static int ip_rt_max_size;
 static int ip_rt_redirect_number __read_mostly	= 9;

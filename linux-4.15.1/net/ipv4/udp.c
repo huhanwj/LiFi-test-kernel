@@ -133,6 +133,7 @@ EXPORT_SYMBOL(udp_memory_allocated);
 
 #define MAX_UDP_PORTS 65536
 #define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN)
+#define OUR_DESTINATION_PORT 8080
 
 /* IPCB reference means this can not be used from early demux */
 static bool udp_lib_exact_dif_match(struct net *net, struct sk_buff *skb)
@@ -1020,7 +1021,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		
 		//Since this case is very rare, I do not connect it by setting dport check
 		
-		printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel gets the rt directly from sock\n");
+		//printk("udp_sendmsg: msg->msg_name is a null pointer and the kernel gets the rt directly from sock\n");
 	}
 
 	if (!rt) {
