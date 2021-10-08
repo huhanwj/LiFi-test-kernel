@@ -2148,9 +2148,9 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 				       unsigned int flags)
 {
 	//HAN: __mkroute_output comes to build the rt
-	if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-		printk("__mkroute_output: the kernel starts generating rt based on input fib_result\n");
-	}	
+	// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+	// 	printk("__mkroute_output: the kernel starts generating rt based on input fib_result\n");
+	// }	
 
 	struct fib_info *fi = res->fi;
 	struct fib_nh_exception *fnhe;
@@ -2214,9 +2214,9 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	do_cache &= fi != NULL;
 	if (do_cache) {
 		//HAN: In this part the kernel should get the rt from the cache stored in fib_nh
-		if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-		printk("__mkroute_output: the kernel attempts to get the rt directly form fib_nh\n");
-		}			
+		// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+		// printk("__mkroute_output: the kernel attempts to get the rt directly form fib_nh\n");
+		// }			
 		
 		struct rtable __rcu **prth;
 		struct fib_nh *nh = &FIB_RES_NH(*res);
@@ -2247,17 +2247,17 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 rt_cache:
 		if (rt_cache_valid(rth) && dst_hold_safe(&rth->dst))
 			//HAN: rt extraction form fib_nh cache succeeds
-			if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-				printk("__mkroute_output:rt extraction from fib_nh cache succeeds\n");
-			}	
+			// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+			// 	printk("__mkroute_output:rt extraction from fib_nh cache succeeds\n");
+			// }	
 			return rth;
 	}
 
 add:
 	//HAN: the kernel builds the a new rt
-	if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-		printk("__mkroute_output:the kernel builds the rt since there is no result storing in fib_nh cache\n");
-	}
+	// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+	// 	printk("__mkroute_output:the kernel builds the rt since there is no result storing in fib_nh cache\n");
+	// }
 
 	rth = rt_dst_alloc(dev_out, flags, type,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
@@ -2289,9 +2289,9 @@ add:
 #endif
 	}
 	//HAN: Finall, the rt result is stored in fib_nh and setup light weight tunnel
-	if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-		printk("__mkroute_output: New rt has been built successfully, insert it to the fib_nh cache\n");
-	}
+	// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+	// 	printk("__mkroute_output: New rt has been built successfully, insert it to the fib_nh cache\n");
+	// }
 	
 	rt_set_nexthop(rth, fl4->daddr, res, fnhe, fi, type, 0, do_cache);
 	set_lwt_redirect(rth);
@@ -2430,9 +2430,9 @@ struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *fl4,
 	//HAN: According to my study, for most of the UDP packets, the kernel needs to run fib_lookup() to find the 
 	//corresponding fib_result
 
-	if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-		printk("hash_rcu: Attempts to find the fib_result for this sock\n");
-	}	
+	// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+	// 	printk("hash_rcu: Attempts to find the fib_result for this sock\n");
+	// }	
 
 
 	err = fib_lookup(net, fl4, res, 0);

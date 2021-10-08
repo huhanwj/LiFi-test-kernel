@@ -882,6 +882,9 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 	struct sk_buff *skb;
+	//HAN: I ATTEMPT TO TRANSMIT A PACKET FOR TWO TIMES 5 OCT
+	struct sk_buff *skb_copied;
+
 	struct ip_options_data opt_copy;
 
 	if (len > 0xFFFF)
@@ -1046,8 +1049,9 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		// If the sockaddr_in pointer is empty, we still need to build the rt for the first incoming packet.
 		// The prehension is that the dport of this packet should be our target value.
 
-		if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-			printk("udp_sendmsg: msg->msg_name is not null, the kernel checks the routing information as expected\n");
+		if (ntohs(fl4->fl4_dport) == OUR_DESTINATION_PORT){
+			printk("\n udp_sendmsg: msg->msg_name is not null, the kernel checks the routing information as expected\n");
+			printk("The destination port of this udp packet is %d\n",ntohs(fl4->fl4_dport));
 		}
 
 		rt = ip_route_output_flow(net, fl4, sk);
@@ -1065,12 +1069,12 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			goto out;
 		if (connected){
 			
-			//After successfully built, we insert this rt to the sk...if connected. According to my knowledge at
+			//HAN: After successfully built, we insert this rt to the sk...if connected. According to my knowledge at
 			//26/Sep, for most udp transmitting programs, they should not be (connected) if they do not use "connect" command
 			
-			if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-				printk("udp_sendmsg: if connected and msg->msg_name is a null pointer, the kernel inserts the generated rt to sk\n");
-			}			
+			// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+			// 	printk("udp_sendmsg: if connected and msg->msg_name is a null pointer, the kernel inserts the generated rt to sk\n");
+			// }			
 
 			sk_dst_set(sk, dst_clone(&rt->dst));
 		}
@@ -1087,21 +1091,45 @@ back_from_confirm:
 	/* Lockless fast path for the non-corking case. */
 	if (!corkreq) {
 		//HAN: if rt is not null, then it is time to build the skb
-		if (fl4->fl4_dport == OUR_DESTINATION_PORT){
-			printk("udp_sendmsg: the kernel generates the skb based on rt\n");
-		}
+		// if (fl4->fl4_dport == OUR_DESTINATION_PORT){
+		// 	printk("udp_sendmsg: the kernel generates the skb based on rt\n");
+		// }
 
 		skb = ip_make_skb(sk, fl4, getfrag, msg, ulen,
 				  sizeof(struct udphdr), &ipc, &rt,
 				  msg->msg_flags);
+		//HAN: I ATTEMPT TO TRANSMIT A PACKET FOR TWO TIMES 5 OCT
+		if (ntohs(fl4->fl4_dport) == OUR_DESTINATION_PORT){		
+			printk("udp_sendmsg: COPY THE SKB\n");
+			skb_copied=ip_make_skb(sk, fl4, getfrag, msg, ulen,
+				  sizeof(struct udphdr), &ipc, &rt,
+				  msg->msg_flags);
+			err = PTR_ERR(skb_copied);
+			if(!IS_ERR_OR_NULL(skb_copied)){
+				printk("udp_sendmsg: the copied SKB is not NULL, ready for transmission\n");
+			}
+			else{
+				printk("udp_sendmsg: the copied SKB is NULL. DO NOT TRANSMIT IT\n");
+			}
+		}
+
 		err = PTR_ERR(skb);
 		if (!IS_ERR_OR_NULL(skb)){
-			//HAN: the kernel sends out the packet
-			if (fl4->fl4_dport == OUR_DESTINATION_PORT){			
-				printk("udp_sendmsg: the kernel sends out the packet by udp_send_skb()\n");
-			}	
 
 			err = udp_send_skb(skb, fl4);
+			//HAN: the kernel sends out the packet
+			
+			if (ntohs(fl4->fl4_dport) == OUR_DESTINATION_PORT){			
+				printk("udp_sendmsg: have already transmitted the original packet\n");
+				if(!IS_ERR_OR_NULL(skb_copied)){
+					err = udp_send_skb(skb_copied, fl4);
+					printk("udp_sendmsg: have already transmitted the copied packet!\n");
+				}
+				else{
+					printk("udp_sendmsg: The copied SKB is NULL after the original packet's transmission\n");
+				}
+			}
+
 			}
 		goto out;
 	}
